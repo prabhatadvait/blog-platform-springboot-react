@@ -33,12 +33,12 @@ public class SecurityConfig {
         BlogUserDetailsService blogUserDetailsService = new BlogUserDetailsService(userRepository);
 
         // Not for the production but to try the working
-        String email = "user@test.com";
+        String email = "prabhatadvait@gmail.com";
         userRepository.findByEmail(email).orElseGet(()-> {
             User newUser = User.builder()
-                    .name("Test User")
+                    .name("Prabhat Sharma")
                     .email(email)
-                    .password(passwordEncoder().encode("password"))
+                    .password(passwordEncoder().encode("Pk@766712"))
                     .build();
             return userRepository.save(newUser);
         });
