@@ -47,26 +47,28 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception{
-        http
-                .cors(cors -> {}).and()
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/drafts").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                ).addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        HttpSecurity http,
+        JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
 
-        return http.build();
+    http
+        .cors(cors -> {}) // Configure CORS if needed
+        .csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/v1/posts/drafts").authenticated()
+            .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
+            .anyRequest().authenticated()
+        )
+        .sessionManagement(session ->
+            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        )
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // This is fine here
 
-    }
+    return http.build();
+}
+
 
     @Bean
     public PasswordEncoder passwordEncoder(){
