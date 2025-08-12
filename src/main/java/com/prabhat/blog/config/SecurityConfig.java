@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,24 +18,27 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
 
-    //Use the JwtAuthenticationFilter from security package
+    // Use the JwtAuthenticationFilter from security package
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationService authenticationService){
+    public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationService authenticationService) {
         return new JwtAuthenticationFilter(authenticationService);
     }
 
-    //Above method needs UserDetails
+    // Above method needs UserDetails
     @Bean
-    public UserDetailsService userDetailsService(UserRepository userRepository){
+    public UserDetailsService userDetailsService(UserRepository userRepository) {
         BlogUserDetailsService blogUserDetailsService = new BlogUserDetailsService(userRepository);
 
-        // Not for the production but to try the working
+        // Not for production — just for testing/demo purposes
         String email = "prabhatadvait@gmail.com";
-        userRepository.findByEmail(email).orElseGet(()-> {
+        userRepository.findByEmail(email).orElseGet(() -> {
             User newUser = User.builder()
                     .name("Prabhat Sharma")
                     .email(email)
@@ -42,46 +46,55 @@ public class SecurityConfig {
                     .build();
             return userRepository.save(newUser);
         });
+
         return blogUserDetailsService;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-        HttpSecurity http,
-        JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+            HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
 
-    http
-        .cors(cors -> {}) // Configure CORS if needed
-        .csrf(csrf -> csrf.disable())
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/v1/posts/drafts").authenticated()
-            .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
-            .anyRequest().authenticated()
-        )
-        .sessionManagement(session ->
-            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        )
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // This is fine here
+        http
+            // ✅ Proper CORS configuration
+            .cors(cors -> cors.configurationSource(request -> {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOrigins(List.of("http://localhost:3000")); // Frontend URL
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(true);
+                return config;
+            }))
+            .csrf(csrf -> csrf.disable())
 
-    return http.build();
-}
+            // ✅ Authorization rules (outside of .cors())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/posts/drafts").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
+                .anyRequest().authenticated()
+            )
 
+            // ✅ Stateless session for JWT
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+
+            // ✅ Add JWT filter
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception{
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 }
-
-//| Bean                      | What it does                                   | Why it’s needed                                                      |
-//| ------------------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
-//| `passwordEncoder()`       | Registers a password encoder (usually BCrypt)  | Needed to hash and verify passwords securely                         |
-//| `authenticationManager()` | Exposes Spring’s built-in authentication logic | Needed to manually authenticate login requests (e.g., for JWT login) |
